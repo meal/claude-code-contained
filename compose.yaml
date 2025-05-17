@@ -1,0 +1,27 @@
+# docker compose configuration for Claude Code CLI
+
+services:
+  claude:
+    # Pull the pre-built image from the public registry.  Uncomment the `build:`
+    # line if you prefer to build a custom variant locally.
+    # build: .
+    image: ghcr.io/meal/claude-code-cli:latest
+    # container already runs under tini via ENTRYPOINT
+    volumes:
+      - .:/app          # mount current project into the container
+      - npm-cache:/root/.npm
+    environment:
+      # Picked up automatically by the CLI
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      # Align file ownership
+      APP_UID: ${UID:-1000}
+      APP_GID: ${GID:-1000}
+    healthcheck:
+      test: ["CMD", "claude", "--version"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  npm-cache:
+    driver: local

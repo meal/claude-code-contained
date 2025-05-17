@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# ---------------------------------------------------------------------------
+# Host-side convenience wrapper around the containerised Claude Code CLI.
+#
+# Save this script somewhere in your $PATH (e.g. ~/bin/claude) or run
+#   make install-wrapper
+# so you can simply type `claude` in any directory and the Dockerised CLI will
+# be executed transparently.
+# ---------------------------------------------------------------------------
+
+set -euo pipefail
+
+# Image to use – override by exporting IMAGE, e.g. IMAGE=myorg/claude:dev
+IMAGE="${IMAGE:-ghcr.io/meal/claude-code-cli:latest}"
+
+# Pass through API key & align file ownership
+exec docker run --rm -it \
+  -v "$PWD":/app \
+  -e ANTHROPIC_API_KEY \
+  -e APP_UID=$(id -u) -e APP_GID=$(id -g) \
+  "${IMAGE}" "$@"

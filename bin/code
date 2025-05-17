@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# Alias wrapper – forwards to bin/claude (same semantics) so users can type
+# either `code` or `claude`.
+
+DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+exec "$DIR/claude" "$@"
