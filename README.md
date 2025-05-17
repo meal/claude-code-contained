@@ -114,9 +114,25 @@ code --version   # same command, two names
 The wrapper automatically:
 
 • Mounts the current directory into the container (`-v "$PWD":/app`).
-• Forwards `ANTHROPIC_API_KEY` if present.
+• Forwards `ANTHROPIC_API_KEY` if present and stores it securely for next time.
 • Aligns UID/GID so generated files aren’t root-owned.
 • Uses the published multi-arch image by default – override with `IMAGE` env.
+
+### Persist your API key once
+
+The very first time you can either export the key or call `--set-key`:
+
+```bash
+# Option A – via env (automatically stored for future runs)
+ANTHROPIC_API_KEY="sk-…" claude --version
+
+# Option B – explicit
+claude --set-key sk-…
+```
+
+After that the wrapper will read the key from
+`~/.config/claude-code/api_key` (0600 permissions) automatically – no more
+re-entering or exporting.
 
 Feel free to inspect `bin/claude` to see the simple `docker run` it executes.
 

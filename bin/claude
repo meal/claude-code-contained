@@ -1,21 +1,79 @@
 #!/usr/bin/env bash
 # ---------------------------------------------------------------------------
-# Host-side convenience wrapper around the containerised Claude Code CLI.
-#
-# Save this script somewhere in your $PATH (e.g. ~/bin/claude) or run
-#   make install-wrapper
-# so you can simply type `claude` in any directory and the Dockerised CLI will
-# be executed transparently.
+# Host-side wrapper for the Dockerised Claude Code CLI.
+# ---------------------------------------------------------------------------
+# Features
+#   • Transparently executes the published container image.
+#   • Remembers your ANTHROPIC_API_KEY between runs (XDG-config compliant).
+#   • Allows one-time key storage via `--set-key sk-…`.
+#   • Forwards UID/GID so new files are owned by you, not root.
 # ---------------------------------------------------------------------------
 
 set -euo pipefail
 
-# Image to use – override by exporting IMAGE, e.g. IMAGE=myorg/claude:dev
+# ------------------------------
+# Configuration
+# ------------------------------
 IMAGE="${IMAGE:-ghcr.io/meal/claude-code-cli:latest}"
 
-# Pass through API key & align file ownership
-exec docker run --rm -it \
-  -v "$PWD":/app \
-  -e ANTHROPIC_API_KEY \
-  -e APP_UID=$(id -u) -e APP_GID=$(id -g) \
-  "${IMAGE}" "$@"
+CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/claude-code"
+API_KEY_FILE="$CONFIG_DIR/api_key"
+
+# ------------------------------
+# Helper: persist key securely
+# ------------------------------
+store_key() {
+  local key="$1"
+  mkdir -p "$CONFIG_DIR"
+  chmod 700 "$CONFIG_DIR"
+  printf '%s\n' "$key" > "$API_KEY_FILE"
+  chmod 600 "$API_KEY_FILE"
+  echo "[claude-wrapper] API key stored in $API_KEY_FILE"
+}
+
+# ------------------------------
+# CLI flag: --set-key sk-…
+# ------------------------------
+if [[ "${1:-}" == "--set-key" ]]; then
+  if [[ -z "${2:-}" ]]; then
+    echo "Usage: claude --set-key <sk-…>" >&2
+    exit 1
+  fi
+  store_key "$2"
+  exit 0
+fi
+
+# ------------------------------
+# Resolve API key
+# Priority: env > config file
+# ------------------------------
+API_KEY="${ANTHROPIC_API_KEY:-}"
+
+if [[ -z "$API_KEY" && -f "$API_KEY_FILE" ]]; then
+  API_KEY="$(<"$API_KEY_FILE")"
+fi
+
+# Persist env-provided key for next time
+if [[ -n "${ANTHROPIC_API_KEY:-}" ]]; then
+  if [[ ! -f "$API_KEY_FILE" || "$(<"$API_KEY_FILE")" != "$ANTHROPIC_API_KEY" ]]; then
+    store_key "$ANTHROPIC_API_KEY"
+  fi
+fi
+
+# Warn if still missing
+if [[ -z "$API_KEY" ]]; then
+  echo "[claude-wrapper] Warning: no ANTHROPIC_API_KEY found (env var or $API_KEY_FILE)" >&2
+fi
+
+# ------------------------------
+# Build docker arguments
+# ------------------------------
+DOCKER_ENVS=( "-e" "APP_UID=$(id -u)" "-e" "APP_GID=$(id -g)" )
+if [[ -n "$API_KEY" ]]; then
+  DOCKER_ENVS+=( "-e" "ANTHROPIC_API_KEY=$API_KEY" )
+fi
+
+# ------------------------------
+# Execute container
+# ------------------------------
+exec docker run --rm -it -v "$PWD":/app "${DOCKER_ENVS[@]}" "$IMAGE" "$@"
