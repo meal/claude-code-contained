@@ -99,8 +99,11 @@ executables, `claude` and `code`, into `~/.local/bin` so they behave exactly
 like a normal CLI tool while still running inside Docker under the hood.
 
 ```bash
-# One-time installation
-make install-wrapper   # copies bin/claude & bin/code into ~/.local/bin
+# One-liner installation (installs to ~/.local/bin by default)
+curl -fsSL https://raw.githubusercontent.com/meal/claude-code-contained/main/install.sh | sh
+
+# Prefer a different location? Override INSTALL_DIR on the fly.
+INSTALL_DIR=/usr/local/bin sh -c 'curl -fsSL https://raw.githubusercontent.com/meal/claude-code-contained/main/install.sh | sh'
 
 # Ensure ~/.local/bin is on your PATH (bash/zsh example)
 echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc  # or ~/.zshrc
